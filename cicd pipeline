@@ -1,0 +1,46 @@
+pipeline{
+    agent any
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('docker-cre')
+    }
+    tools{
+        maven 'maven'
+        jdk 'java'
+        //sonarqube scanner 'sonar'
+    }
+    stages{
+        stage('checkout'){
+            steps{
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/r-devops/mavenrepo.git']]])
+            }
+        }
+        stage('build'){
+            steps{
+                sh 'mvn package'
+            }
+        }
+        stage('create docker image'){
+            steps{
+                sh 'docker build -t studentregi:latest .'
+                sh 'docker tag studentregi amardeepsambaru/studentregi:$BUILD_NUMBER'
+            }    
+        }
+        stage('login to dockerhub'){
+            steps{
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u amardeepsambaru --password-stdin'
+            }
+        }
+        stage('push image'){
+            steps{
+                sh 'docker push amardeepsambaru/studentregi:$BUILD_NUMBER'
+
+            }
+        }
+    }
+    post{
+        always{
+            sh 'docker logout'
+        }
+    }
+}
+
